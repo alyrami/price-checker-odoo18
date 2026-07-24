@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    
+    <t t-name="price_checker.BarcodeScanner">
+        <div class="o_price_checker_barcode_scanner">
+            
+            <!-- Header -->
+            <div class="o_barcode_scanner_header p-3 border-bottom bg-light">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h3 class="mb-0">
+                            <i class="fa fa-barcode me-2"/>
+                            Barcode Price Checker
+                        </h3>
+                        <small class="text-muted">Scan or enter product barcode</small>
+                    </div>
+                    <div class="col-auto" t-if="state.lastScan">
+                        <small class="text-muted">
+                            <i class="fa fa-clock-o me-1"/>
+                            Last scan: <t t-esc="state.lastScan"/>
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Barcode Input Section -->
+            <div class="o_barcode_scanner_input p-4 border-bottom bg-white">
+                <div class="row g-3">
+                    <div class="col-12 col-md-8">
+                        <label for="barcode_input" class="form-label fw-bold">
+                            <i class="fa fa-search me-2"/>Barcode
+                        </label>
+                        <input 
+                            type="text" 
+                            class="form-control form-control-lg"
+                            id="barcode_input"
+                            t-ref="barcodeInput"
+                            t-model="state.barcode"
+                            t-on-input="onBarcodeInput"
+                            t-on-keypress="onKeyPress"
+                            placeholder="Scan or type barcode here..."
+                            autofocus="autofocus"
+                            t-att-disabled="state.loading"/>
+                    </div>
+                    <div class="col-12 col-md-4 d-flex align-items-end gap-2">
+                        <button 
+                            class="btn btn-primary btn-lg flex-grow-1"
+                            t-on-click="searchProduct"
+                            t-att-disabled="state.loading or !state.barcode">
+                            <i class="fa fa-search me-2"/>
+                            <t t-if="state.loading">Searching...</t>
+                            <t t-else="">Search</t>
+                        </button>
+                        <button 
+                            class="btn btn-secondary btn-lg"
+                            t-on-click="clearSearch"
+                            t-att-disabled="state.loading">
+                            <i class="fa fa-refresh"/>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <div t-if="state.loading" class="text-center mt-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Product Result Section -->
+            <div t-if="state.product and !state.loading" class="o_barcode_scanner_result p-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fa fa-check-circle me-2"/>
+                            Product Found
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Product Image -->
+                            <div class="col-12 col-md-3 text-center mb-3 mb-md-0">
+                                <t t-if="state.product.image_128">
+                                    <img 
+                                        t-att-src="'data:image/png;base64,' + state.product.image_128" 
+                                        class="img-fluid rounded border"
+                                        style="max-height: 200px;"
+                                        alt="Product Image"/>
+                                </t>
+                                <t t-else="">
+                                    <div class="bg-light border rounded d-flex align-items-center justify-content-center" style="height: 200px;">
+                                        <i class="fa fa-image fa-3x text-muted"/>
+                                    </div>
+                                </t>
+                            </div>
+                            
+                            <!-- Product Information -->
+                            <div class="col-12 col-md-9">
+                                <div class="row g-3">
+                                    <!-- Product Name -->
+                                    <div class="col-12">
+                                        <h3 class="mb-2">
+                                            <t t-esc="state.product.name"/>
+                                        </h3>
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            <span class="badge bg-info">
+                                                <i class="fa fa-barcode me-1"/>
+                                                <t t-esc="state.product.barcode"/>
+                                            </span>
+                                            <span t-if="state.product.default_code" class="badge bg-secondary">
+                                                <i class="fa fa-tag me-1"/>
+                                                <t t-esc="state.product.default_code"/>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Category -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label text-muted small mb-1">
+                                            <i class="fa fa-folder-o me-1"/>Category
+                                        </label>
+                                        <div class="fs-5">
+                                            <t t-esc="state.product.categ_id[1]"/>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Sales Price -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label text-muted small mb-1">
+                                            <i class="fa fa-money me-1"/>Sales Price
+                                        </label>
+                                        <div class="fs-5 mb-2">
+                                            <span class="text-muted">Price (excl. tax):</span>
+                                            <span class="fw-bold ms-2">
+                                                <t t-esc="formatPrice(state.product.list_price)"/>
+                                            </span>
+                                            <small class="text-muted ms-1">
+                                                <t t-esc="getCurrencySymbol()"/>
+                                            </small>
+                                        </div>
+                                        <div class="fs-3 fw-bold text-success">
+                                            <t t-esc="formatPrice(state.product.price_checker_price_with_tax)"/>
+                                            <small class="text-muted fs-6">
+                                                <t t-esc="getCurrencySymbol()"/>
+                                            </small>
+                                        </div>
+                                        <small class="text-success d-block mt-1">
+                                            <i class="fa fa-check-circle me-1"/>Price incl. tax
+                                        </small>
+                                        <div t-if="hasTaxes()" class="mt-2">
+                                            <small class="badge bg-info">
+                                                Tax: <t t-esc="formatPrice(state.product.price_checker_tax_amount)"/>
+                                                <t t-esc="getCurrencySymbol()"/>
+                                            </small>
+                                        </div>
+                                        <div t-else="" class="mt-2">
+                                            <small class="badge bg-secondary">
+                                                No tax applied
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Stock Quantity -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label text-muted small mb-1">
+                                            <i class="fa fa-cubes me-1"/>On Hand Quantity
+                                        </label>
+                                        <div class="fs-4">
+                                            <span t-att-class="state.product.qty_available &lt;= 0 ? 'text-danger fw-bold' : state.product.qty_available &lt;= 5 ? 'text-warning fw-bold' : 'text-success fw-bold'">
+                                                <t t-esc="state.product.qty_available"/>
+                                            </span>
+                                            <small class="text-muted ms-2">
+                                                <t t-esc="state.product.uom_id[1]"/>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Stock Status -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label text-muted small mb-1">
+                                            <i class="fa fa-info-circle me-1"/>Stock Status
+                                        </label>
+                                        <div>
+                                            <span t-att-class="getStatusClass()" class="fs-5 px-3 py-2">
+                                                <i class="fa fa-circle me-1"/>
+                                                <t t-esc="getStatusText()"/>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Buttons -->
+                                    <div class="col-12 mt-3">
+                                        <div class="d-flex gap-2">
+                                            <button 
+                                                class="btn btn-outline-primary"
+                                                t-on-click="openProduct">
+                                                <i class="fa fa-external-link me-2"/>
+                                                View Full Details
+                                            </button>
+                                            <button 
+                                                class="btn btn-outline-secondary"
+                                                t-on-click="clearSearch">
+                                                <i class="fa fa-search me-2"/>
+                                                Scan Another Product
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- No Result Message -->
+            <div t-if="!state.product and !state.loading and state.barcode" class="o_barcode_scanner_no_result p-4 text-center">
+                <div class="alert alert-warning d-inline-block">
+                    <i class="fa fa-exclamation-triangle fa-2x mb-2"/>
+                    <h5>No Product Found</h5>
+                    <p class="mb-0">No product with barcode "<strong><t t-esc="state.barcode"/></strong>" was found in the system.</p>
+                </div>
+            </div>
+            
+            <!-- Instructions -->
+            <div t-if="!state.product and !state.loading and !state.barcode" class="o_barcode_scanner_instructions p-4">
+                <div class="row justify-content-center">
+                    <div class="col-12 col-md-8">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fa fa-info-circle me-2"/>
+                                    How to Use
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-unstyled mb-0">
+                                    <li class="mb-3">
+                                        <i class="fa fa-barcode fa-lg text-primary me-3"/>
+                                        <strong>Scan:</strong> Use a barcode scanner to automatically scan product barcodes
+                                    </li>
+                                    <li class="mb-3">
+                                        <i class="fa fa-keyboard-o fa-lg text-primary me-3"/>
+                                        <strong>Type:</strong> Manually enter the barcode in the input field above
+                                    </li>
+                                    <li class="mb-3">
+                                        <i class="fa fa-search fa-lg text-primary me-3"/>
+                                        <strong>Search:</strong> Press Enter or click the Search button
+                                    </li>
+                                    <li class="mb-0">
+                                        <i class="fa fa-eye fa-lg text-primary me-3"/>
+                                        <strong>View:</strong> See product name, price, stock level, and image instantly
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="fa fa-lightbulb-o me-2"/>
+                            <strong>Tip:</strong> Keep the input field focused to scan multiple products quickly!
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </t>
+    
+</templates>

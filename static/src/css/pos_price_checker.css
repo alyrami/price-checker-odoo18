@@ -1,0 +1,252 @@
+/* ============================================================
+   price_checker – POS Price Checker Screen styles
+   Full-screen layout (same visual layer as Cash In/Out)
+   ============================================================ */
+
+/* ── screen wrapper ────────────────────────────────────────── */
+.pc-screen {
+    position: fixed;
+    inset: 0;                       /* covers entire POS viewport */
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    background: #1e1e2e;            /* dark POS-style bg */
+    color: #e2e8f0;
+    font-family: inherit;
+    overflow: hidden;
+}
+
+/* ── top bar ───────────────────────────────────────────────── */
+.pc-topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    background: #16162a;
+    border-bottom: 1px solid #2e2e4a;
+    flex-shrink: 0;
+}
+.pc-back-btn {
+    background: #3a3a5c;
+    color: #e2e8f0;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s;
+}
+.pc-back-btn:hover { background: #4a4a7c; }
+.pc-title {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #a5b4fc;
+}
+
+/* ── search row ────────────────────────────────────────────── */
+.pc-search-row {
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px;
+    flex-shrink: 0;
+    background: #1e1e2e;
+}
+.pc-search-input {
+    flex: 1;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 2px solid #3a3a5c;
+    background: #2a2a42;
+    color: #fff;
+    font-size: 1.1rem;
+    outline: none;
+    transition: border-color .2s;
+}
+.pc-search-input:focus { border-color: #a5b4fc; }
+.pc-search-input::placeholder { color: #6b7280; }
+.pc-search-btn {
+    background: #a5b4fc;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 22px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+}
+.pc-search-btn:hover   { background: #818cf8; }
+.pc-search-btn:disabled { opacity: .45; cursor: not-allowed; }
+.pc-clear-btn {
+    background: #3a3a5c;
+    color: #e2e8f0;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background .15s;
+}
+.pc-clear-btn:hover   { background: #4a4a7c; }
+.pc-clear-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── scrollable body ───────────────────────────────────────── */
+.pc-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ── spinner ───────────────────────────────────────────────── */
+.pc-spinner-wrap { text-align: center; margin-top: 60px; }
+.pc-spinner {
+    width: 44px; height: 44px;
+    border: 5px solid #3a3a5c;
+    border-top-color: #a5b4fc;
+    border-radius: 50%;
+    animation: pc-spin .7s linear infinite;
+    margin: 0 auto;
+}
+@keyframes pc-spin { to { transform: rotate(360deg); } }
+
+/* ── placeholder ───────────────────────────────────────────── */
+.pc-placeholder {
+    text-align: center;
+    margin-top: 80px;
+    color: #6b7280;
+}
+.pc-placeholder .fa-barcode { font-size: 4rem; color: #3a3a5c; }
+.pc-placeholder p { font-size: 1.05rem; margin-top: 16px; line-height: 1.5; }
+
+/* ── not found ─────────────────────────────────────────────── */
+.pc-not-found {
+    text-align: center;
+    margin-top: 80px;
+    color: #f87171;
+}
+.pc-not-found .fa-exclamation-triangle { font-size: 3rem; }
+.pc-not-found p { margin-top: 12px; font-size: 1rem; line-height: 1.5; }
+
+/* ── product card (single result) ──────────────────────────── */
+.pc-product-card {
+    width: 100%;
+    max-width: 520px;
+    background: #2a2a42;
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    gap: 22px;
+    align-items: flex-start;
+    box-shadow: 0 4px 20px rgba(0,0,0,.3);
+}
+.pc-product-img-wrap {
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+    background: #1e1e2e;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.pc-product-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.pc-no-img-icon { font-size: 2.5rem; color: #3a3a5c; }
+.pc-product-info { flex: 1; min-width: 0; }
+.pc-product-name { margin: 0 0 10px; font-size: 1.25rem; color: #fff; word-break: break-word; }
+
+/* badges */
+.pc-product-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.pc-badge {
+    font-size: .82rem;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: #16162a;
+    color: #94a3b8;
+}
+.pc-badge .fa { margin-right: 4px; }
+
+/* price block */
+.pc-price-block { margin-bottom: 14px; }
+.pc-price-main {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #a5b4fc;
+    line-height: 1.2;
+}
+.pc-currency { font-size: 1.3rem; vertical-align: top; margin-right: 2px; }
+.pc-price-label { font-size: .82rem; color: #6b7280; margin-bottom: 6px; }
+.pc-price-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: .9rem;
+    color: #94a3b8;
+    padding: 2px 0;
+}
+
+/* stock */
+.pc-stock-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pc-stock-badge {
+    font-size: .82rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+.pc-stock-badge.in_stock      { background: #065f46; color: #6ee7b7; }
+.pc-stock-badge.low_stock     { background: #78350f; color: #fcd34d; }
+.pc-stock-badge.out_of_stock  { background: #7f1d1d; color: #fca5a5; }
+.pc-stock-qty { font-size: .85rem; color: #94a3b8; }
+
+/* ── results list ──────────────────────────────────────────── */
+.pc-results-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pc-results-list li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #2a2a42;
+    border-radius: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background .15s;
+}
+.pc-results-list li:hover { background: #363654; }
+.pc-res-img {
+    width: 52px; height: 52px;
+    flex-shrink: 0;
+    background: #1e1e2e;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.pc-res-img img { width: 100%; height: 100%; object-fit: cover; }
+.pc-res-img .fa { color: #3a3a5c; font-size: 1.4rem; }
+.pc-res-info { flex: 1; min-width: 0; }
+.pc-res-name { font-weight: 600; color: #fff; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-res-sub  { font-size: .8rem; color: #6b7280; margin-top: 2px; }
+.pc-res-price { font-weight: 700; color: #a5b4fc; font-size: 1.05rem; white-space: nowrap; }
+
+/* ── responsive (small screens / tablets) ──────────────────── */
+@media (max-width: 600px) {
+    .pc-product-card { flex-direction: column; align-items: center; text-align: center; }
+    .pc-product-badges { justify-content: center; }
+    .pc-price-row { justify-content: center; gap: 8px; }
+    .pc-stock-row { justify-content: center; }
+}

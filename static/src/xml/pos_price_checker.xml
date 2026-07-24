@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+<!-- 1. Add "Price Checker" button into ControlButtons (product screen) -->
+<t t-name="price_checker.ControlButtons"
+   t-inherit="point_of_sale.ControlButtons"
+   t-inherit-mode="extension">
+    <xpath expr="//t[@t-if='props.showRemainingButtons']/div/OrderlineNoteButton" position="after">
+        <button class="btn btn-light rounded-0 fw-bolder"
+                t-on-click="() => this.onClickPriceChecker()">
+            <i class="fa fa-barcode me-1"/>
+            Price Checker
+        </button>
+    </xpath>
+</t>
+
+<!-- 2. PriceCheckerScreen – full POS screen (like Cash In/Out) -->
+<t t-name="price_checker.PriceCheckerScreen" owl="1">
+    <div class="pc-screen">
+
+        <!-- top bar -->
+        <div class="pc-topbar">
+            <button class="pc-back-btn" t-on-click="goBack">
+                <i class="fa fa-arrow-left"/> Back
+            </button>
+            <h2 class="pc-title"><i class="fa fa-barcode"/> Price Checker</h2>
+        </div>
+
+        <!-- search row -->
+        <div class="pc-search-row">
+            <input type="text"
+                   class="pc-search-input"
+                   t-ref="pcInput"
+                   t-att-value="state.query"
+                   t-on-input="onInput"
+                   t-on-keydown="onKeyDown"
+                   placeholder="Scan barcode or type product name"
+                   autocomplete="off"/>
+            <button class="pc-search-btn"
+                    t-on-click="doSearch"
+                    t-att-disabled="state.loading">
+                <i class="fa fa-search"/> Search
+            </button>
+            <button class="pc-clear-btn"
+                    t-on-click="clearSearch"
+                    t-att-disabled="state.loading">
+                <i class="fa fa-times"/>
+            </button>
+        </div>
+
+        <!-- body -->
+        <div class="pc-body">
+
+            <!-- spinner -->
+            <t t-if="state.loading">
+                <div class="pc-spinner-wrap">
+                    <div class="pc-spinner"></div>
+                    <p style="color:#6b7280;margin-top:10px;font-size:.9rem;">Searching …</p>
+                </div>
+            </t>
+
+            <!-- single product card -->
+            <t t-elif="state.mode === 'product' and state.product">
+                <div class="pc-product-card">
+                    <div class="pc-product-img-wrap">
+                        <t t-if="state.product.image_128">
+                            <img t-att-src="'data:image/png;base64,' + state.product.image_128" alt="Product"/>
+                        </t>
+                        <t t-else="">
+                            <i class="fa fa-image pc-no-img-icon"/>
+                        </t>
+                    </div>
+                    <div class="pc-product-info">
+                        <h3 class="pc-product-name" t-esc="state.product.name"/>
+                        <div class="pc-product-badges">
+                            <t t-if="state.product.barcode">
+                                <span class="pc-badge barcode"><i class="fa fa-barcode"/> <t t-esc="state.product.barcode"/></span>
+                            </t>
+                            <t t-if="state.product.default_code">
+                                <span class="pc-badge ref"><i class="fa fa-tag"/> <t t-esc="state.product.default_code"/></span>
+                            </t>
+                            <t t-if="state.product.categ_name">
+                                <span class="pc-badge categ"><i class="fa fa-folder-o"/> <t t-esc="state.product.categ_name"/></span>
+                            </t>
+                        </div>
+                        <div class="pc-price-block">
+                            <div class="pc-price-main">
+                                <span class="pc-currency" t-esc="state.product.currency_symbol"/>
+                                <t t-esc="fmtPrice(state.product.price_with_tax)"/>
+                            </div>
+                            <div class="pc-price-label">Sales Price (incl. tax)</div>
+                            <div class="pc-price-row">
+                                <span>Base Price (excl. tax)</span>
+                                <span><t t-esc="state.product.currency_symbol"/><t t-esc="fmtPrice(state.product.list_price)"/></span>
+                            </div>
+                            <t t-if="state.product.tax_amount &gt; 0">
+                                <div class="pc-price-row">
+                                    <span>Sales Tax</span>
+                                    <span><t t-esc="state.product.currency_symbol"/><t t-esc="fmtPrice(state.product.tax_amount)"/></span>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <div class="pc-price-row" style="color:#6b7280;font-size:0.85rem;">
+                                    <span>No sales tax applied</span>
+                                    <span></span>
+                                </div>
+                            </t>
+                        </div>
+                        <div class="pc-stock-row">
+                            <span t-att-class="stockClass(state.product.stock_status)" t-esc="stockLabel(state.product.stock_status)"/>
+                            <span class="pc-stock-qty">
+                                On hand: <strong><t t-esc="state.product.qty_available"/></strong>
+                                <t t-if="state.product.uom_name"> <t t-esc="state.product.uom_name"/></t>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:18px;text-align:center;">
+                    <button class="pc-search-btn" style="background:#6b7280;" t-on-click="clearSearch">
+                        <i class="fa fa-arrow-left"/> New Search
+                    </button>
+                </div>
+            </t>
+
+            <!-- list of results -->
+            <t t-elif="state.mode === 'list' and state.products.length">
+                <ul class="pc-results-list">
+                    <t t-foreach="state.products" t-as="prod" t-key="prod.id">
+                        <li t-on-click="selectProduct(prod)">
+                            <div class="pc-res-img">
+                                <t t-if="prod.image_128">
+                                    <img t-att-src="'data:image/png;base64,' + prod.image_128" alt=""/>
+                                </t>
+                                <t t-else=""><i class="fa fa-image"/></t>
+                            </div>
+                            <div class="pc-res-info">
+                                <div class="pc-res-name" t-esc="prod.name"/>
+                                <div class="pc-res-sub">
+                                    <t t-if="prod.barcode">Barcode: <t t-esc="prod.barcode"/></t>
+                                    <t t-if="prod.barcode and prod.default_code"> | </t>
+                                    <t t-if="prod.default_code">Ref: <t t-esc="prod.default_code"/></t>
+                                </div>
+                            </div>
+                            <div class="pc-res-price">
+                                <t t-esc="prod.currency_symbol"/><t t-esc="fmtPrice(prod.price_with_tax)"/>
+                            </div>
+                        </li>
+                    </t>
+                </ul>
+            </t>
+
+            <!-- not found -->
+            <t t-elif="state.mode === 'notfound'">
+                <div class="pc-not-found">
+                    <i class="fa fa-exclamation-triangle"/>
+                    <p><strong>No product found</strong> for "<t t-esc="state.query"/>".<br/>
+                       Try a different barcode or search term.</p>
+                </div>
+            </t>
+
+            <!-- idle -->
+            <t t-else="">
+                <div class="pc-placeholder">
+                    <i class="fa fa-barcode"/>
+                    <p>Scan a barcode or type a product name<br/>to check price and stock.</p>
+                </div>
+            </t>
+
+        </div><!-- /pc-body -->
+    </div><!-- /pc-screen -->
+</t>
+
+</templates>

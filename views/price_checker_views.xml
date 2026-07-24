@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Tree View (List View) - Optimized for fast lookup -->
+    <record id="view_price_checker_tree" model="ir.ui.view">
+        <field name="name">price.checker.tree</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <list string="Price Checker" create="false" edit="false" delete="false" 
+                  default_order="name" decoration-danger="qty_available &lt;= 0" 
+                  decoration-warning="qty_available &gt; 0 and qty_available &lt;= 5">
+                
+                <!-- Product Image Thumbnail -->
+                <field name="image_128" string="Image" widget="image" options="{'size': [64, 64]}"/>
+                
+                <!-- Product Name -->
+                <field name="name" string="Product Name"/>
+                
+                <!-- Category -->
+                <field name="categ_id" string="Category"/>
+                
+                <!-- Sales Price (excl. tax) -->
+                <field name="list_price" string="Price (excl. tax)" widget="monetary" optional="show"/>
+                
+                <!-- Sales Price (incl. tax) -->
+                <field name="price_checker_price_with_tax" string="Price (incl. tax)" widget="monetary"/>
+                
+                <!-- Tax Amount -->
+                <field name="price_checker_tax_amount" string="Tax" widget="monetary" optional="hide"/>
+                
+                <!-- On-hand Quantity -->
+                <field name="qty_available" string="On Hand" 
+                       decoration-danger="qty_available &lt;= 0"
+                       decoration-warning="qty_available &gt; 0 and qty_available &lt;= 5"/>
+                
+                <!-- Stock Status (computed field) -->
+                <field name="price_checker_stock_status" string="Status" widget="badge" 
+                       decoration-success="price_checker_stock_status == 'in_stock'"
+                       decoration-warning="price_checker_stock_status == 'low_stock'"
+                       decoration-danger="price_checker_stock_status == 'out_of_stock'"/>
+                
+                <!-- UOM for reference -->
+                <field name="uom_id" string="Unit" optional="hide"/>
+                
+                <!-- Currency (hidden but needed for monetary widget) -->
+                <field name="currency_id" column_invisible="1"/>
+                
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View - Detailed inspection (read-only) -->
+    <record id="view_price_checker_form" model="ir.ui.view">
+        <field name="name">price.checker.form</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <form string="Price Checker - Product Details" create="false" edit="false" delete="false">
+                <sheet>
+                    <field name="image_1920" widget="image" class="oe_avatar" 
+                           options="{'size': [256, 256]}"/>
+                    
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1>
+                            <field name="name" placeholder="Product Name"/>
+                        </h1>
+                    </div>
+                    
+                    <group>
+                        <group string="Pricing Information">
+                            <field name="list_price" string="Price (excl. tax)" widget="monetary"/>
+                            <field name="price_checker_price_with_tax" string="Price (incl. tax)" widget="monetary"/>
+                            <field name="price_checker_tax_amount" string="Tax Amount" widget="monetary"/>
+                            <field name="taxes_id" string="Customer Taxes" widget="many2many_tags"/>
+                            <field name="standard_price" string="Cost" widget="monetary"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        
+                        <group string="Stock Information">
+                            <field name="qty_available" string="On Hand Quantity"/>
+                            <field name="virtual_available" string="Forecasted Quantity"/>
+                            <field name="price_checker_stock_status" widget="badge"/>
+                            <field name="uom_id"/>
+                        </group>
+                    </group>
+                    
+                    <group>
+                        <group string="Product Information">
+                            <field name="categ_id"/>
+                            <field name="default_code" string="Internal Reference"/>
+                            <field name="barcode"/>
+                        </group>
+                        
+                        <group string="Additional Info">
+                            <field name="type" string="Product Type"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Description">
+                            <field name="description" placeholder="Product description..."/>
+                        </page>
+                        <page string="Sales Description">
+                            <field name="description_sale" placeholder="Description for customers..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View - Advanced filtering -->
+    <record id="view_price_checker_search" model="ir.ui.view">
+        <field name="name">price.checker.search</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <search string="Search Products">
+                
+                <!-- Search by name, reference, or barcode -->
+                <field name="name" string="Product" 
+                       filter_domain="['|', '|', ('name', 'ilike', self), ('default_code', 'ilike', self), ('barcode', 'ilike', self)]"/>
+                <field name="categ_id" string="Category"/>
+                <field name="default_code" string="Internal Reference"/>
+                <field name="barcode" string="Barcode"/>
+                
+                <!-- Quick Filters -->
+                <filter string="In Stock" name="in_stock" 
+                        domain="[('qty_available', '&gt;', 0)]"/>
+                <filter string="Out of Stock" name="out_of_stock" 
+                        domain="[('qty_available', '&lt;=', 0)]"/>
+                <filter string="Low Stock" name="low_stock" 
+                        domain="[('qty_available', '&gt;', 0), ('qty_available', '&lt;=', 5)]"/>
+                
+                <separator/>
+                
+                <filter string="Can be Sold" name="sale_ok" 
+                        domain="[('sale_ok', '=', True)]"/>
+                <filter string="Can be Purchased" name="purchase_ok" 
+                        domain="[('purchase_ok', '=', True)]"/>
+                
+                <separator/>
+                
+                <filter string="Active Products" name="active" 
+                        domain="[('active', '=', True)]"/>
+                <filter string="Archived Products" name="inactive" 
+                        domain="[('active', '=', False)]"/>
+                
+                <!-- Group By -->
+                <group expand="0" string="Group By">
+                    <filter string="Category" name="group_by_category" 
+                            context="{'group_by': 'categ_id'}"/>
+                    <filter string="Product Type" name="group_by_type" 
+                            context="{'group_by': 'type'}"/>
+                    <filter string="Stock Status" name="group_by_stock_status" 
+                            context="{'group_by': 'price_checker_stock_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action to open Price Checker -->
+    <record id="action_price_checker" model="ir.actions.act_window">
+        <field name="name">Price Checker</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_price_checker_tree"/>
+        <field name="search_view_id" ref="view_price_checker_search"/>
+        <field name="context">{
+            'search_default_active': 1,
+            'search_default_sale_ok': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No products found!
+            </p>
+            <p>
+                The Price Checker shows all your products with their current pricing and stock levels.
+                Use the filters above to find specific products.
+            </p>
+        </field>
+    </record>
+
+</odoo>
