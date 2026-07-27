@@ -13,6 +13,12 @@ class ProductTemplate(models.Model):
         ('low_stock', 'Low Stock'),
     ], string='Stock Status', compute='_compute_price_checker_stock_status', store=False)
 
+    price_checker_qty_available = fields.Float(
+        string='Company Qty Available',
+        compute='_compute_price_checker_qty_available',
+        store=False,
+    )
+
     price_checker_price_with_tax = fields.Float(
         string='Price with Tax',
         compute='_compute_price_with_tax',
@@ -58,7 +64,7 @@ class ProductTemplate(models.Model):
             ('product_id', 'in', variant_ids),
             ('location_id', 'in', internal_locs.ids),
         ])
-        qty = sum(quants.mapped('quantity')) - sum(quants.mapped('reserved_quantity'))
+        qty = sum(quants.mapped('quantity'))
         return max(qty, 0.0)
 
     @api.depends('qty_available')
@@ -75,6 +81,14 @@ class ProductTemplate(models.Model):
                 product.price_checker_stock_status = 'low_stock'
             else:
                 product.price_checker_stock_status = 'in_stock'
+
+    @api.depends('qty_available')
+    def _compute_price_checker_qty_available(self):
+        for product in self:
+            try:
+                product.price_checker_qty_available = product._get_company_qty_available()
+            except Exception:
+                product.price_checker_qty_available = product.qty_available or 0.0
 
     @api.depends('list_price', 'taxes_id')
     def _compute_price_with_tax(self):
