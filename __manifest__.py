@@ -31,9 +31,11 @@
         * FIXED: Available qty was aggregating stock from ALL companies and branches.
           Now only stock in internal locations belonging to the active company is counted.
     """,
-    'author': 'Your Company',
-    'website': 'https://www.yourcompany.com',
-    'license': 'LGPL-3',
+    'author': 'Rami-Aly',
+    'support': 'ramielaly@gmail.com',
+    'license': 'OPL-1',
+    'price': 25.00,
+    'currency': 'USD',
     'depends': [
         'base',
         'product',
@@ -61,6 +63,7 @@
             'price_checker/static/src/xml/pos_price_checker.xml',
         ],
     },
+    'images': ['static/description/banner.png'],
     'demo': [],
     'installable': True,
     'application': False,

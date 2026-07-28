@@ -126,7 +126,7 @@
             <t t-elif="state.mode === 'list' and state.products.length">
                 <ul class="pc-results-list">
                     <t t-foreach="state.products" t-as="prod" t-key="prod.id">
-                        <li t-on-click="selectProduct(prod)">
+                        <li t-on-click="() => this.selectProduct(prod)">
                             <div class="pc-res-img">
                                 <t t-if="prod.image_128">
                                     <img t-att-src="'data:image/png;base64,' + prod.image_128" alt=""/>

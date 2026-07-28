@@ -70,6 +70,11 @@ export class PriceCheckerScreen extends Component {
 
         this.inputRef = useRef("pcInput");
 
+        // Monotonically increasing token used to discard stale async
+        // responses when a new scan/search starts before a previous one
+        // has finished (e.g. rapid double-scans on the hardware reader).
+        this._requestSeq = 0;
+
         // In POS, barcode events are handled through the hardware proxy
         // We listen to the global barcode_scanned event
         this._barcodeHandler = this._handleBarcode.bind(this);
@@ -113,13 +118,18 @@ export class PriceCheckerScreen extends Component {
     }
 
     async searchByBarcode(barcode) {
+        const seq = ++this._requestSeq;
         this.state.loading  = true;
         this.state.product  = null;
         this.state.products = [];
         this.state.mode     = "idle";
         try {
             const res = await rpc("/web/price_checker/search_by_barcode", { barcode });
-            
+
+            // A newer scan/search started while this one was in flight —
+            // drop this response so it can't overwrite fresher state.
+            if (seq !== this._requestSeq) return;
+
             // Check for server-side errors
             if (res.error) {
                 console.error("[PriceChecker] Server error:", res.error);
@@ -127,42 +137,51 @@ export class PriceCheckerScreen extends Component {
                 beepErr();
                 return;
             }
-            
+
             if (res.product) {
                 this.state.product = res.product;
                 this.state.mode    = "product";
                 beepOk();
             } else {
-                await this._fetchByName(barcode);
-                if (!this.state.products.length) {
+                await this._fetchByName(barcode, seq);
+                if (seq === this._requestSeq && !this.state.products.length) {
                     this.state.mode = "notfound";
                     beepErr();
                 }
             }
         } catch (e) {
             console.error("[PriceChecker] barcode rpc error:", e);
-            this.state.mode = "notfound";
-            beepErr();
+            if (seq === this._requestSeq) {
+                this.state.mode = "notfound";
+                beepErr();
+            }
         } finally {
+            if (seq === this._requestSeq) {
+                this.state.loading = false;
+                this._focusInput();
+            }
+        }
+    }
+
+    async searchByName(query) {
+        const seq = ++this._requestSeq;
+        this.state.loading  = true;
+        this.state.product  = null;
+        this.state.products = [];
+        this.state.mode     = "idle";
+        await this._fetchByName(query, seq);
+        if (seq === this._requestSeq) {
             this.state.loading = false;
             this._focusInput();
         }
     }
 
-    async searchByName(query) {
-        this.state.loading  = true;
-        this.state.product  = null;
-        this.state.products = [];
-        this.state.mode     = "idle";
-        await this._fetchByName(query);
-        this.state.loading = false;
-        this._focusInput();
-    }
-
-    async _fetchByName(query) {
+    async _fetchByName(query, seq) {
         try {
             const res = await rpc("/web/price_checker/search_by_name", { query, limit: 12 });
-            
+
+            if (seq !== this._requestSeq) return;
+
             // Check for server-side errors
             if (res.error) {
                 console.error("[PriceChecker] Server error:", res.error);
@@ -170,12 +189,14 @@ export class PriceCheckerScreen extends Component {
                 this.state.mode = "notfound";
                 return;
             }
-            
+
             this.state.products = res.products || [];
             this.state.mode     = this.state.products.length ? "list" : "notfound";
         } catch (e) {
             console.error("[PriceChecker] name rpc error:", e);
-            this.state.mode = "notfound";
+            if (seq === this._requestSeq) {
+                this.state.mode = "notfound";
+            }
         }
     }
 

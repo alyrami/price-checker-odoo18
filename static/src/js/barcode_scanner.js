@@ -19,7 +19,12 @@ export class PriceCheckerBarcodeScanner extends Component {
         });
         
         this.inputRef = useRef("barcodeInput");
-        
+
+        // Monotonically increasing token used to discard stale responses
+        // when a new scan starts before a previous search has resolved
+        // (e.g. rapid double-scans on the hardware reader).
+        this._requestSeq = 0;
+
         onWillStart(async () => {
             // Listen for barcode scanner events
             this.barcodeReader.bus.addEventListener("barcode_scanned", this._onBarcodeScanned.bind(this));
@@ -58,17 +63,18 @@ export class PriceCheckerBarcodeScanner extends Component {
      */
     async searchProduct() {
         const barcode = this.state.barcode.trim();
-        
+
         if (!barcode) {
             this.notification.add("Please enter or scan a barcode", {
                 type: "warning",
             });
             return;
         }
-        
+
+        const seq = ++this._requestSeq;
         this.state.loading = true;
         this.state.product = null;
-        
+
         try {
             // Search for product by barcode
             const products = await this.orm.searchRead(
@@ -91,18 +97,22 @@ export class PriceCheckerBarcodeScanner extends Component {
                 ],
                 { limit: 1 }
             );
-            
+
+            // A newer scan started while this search was in flight — drop
+            // this response so it can't clobber the fresher result.
+            if (seq !== this._requestSeq) return;
+
             if (products.length > 0) {
                 this.state.product = products[0];
                 this.state.lastScan = new Date().toLocaleTimeString();
-                
+
                 // Play success sound (optional)
                 this.playBeep();
-                
+
                 this.notification.add(`Product found: ${products[0].name}`, {
                     type: "success",
                 });
-                
+
                 // Auto-focus input for next scan
                 setTimeout(() => {
                     if (this.inputRef.el) {
@@ -112,7 +122,7 @@ export class PriceCheckerBarcodeScanner extends Component {
             } else {
                 // Play error sound (optional)
                 this.playErrorBeep();
-                
+
                 this.notification.add(`No product found with barcode: ${barcode}`, {
                     type: "danger",
                 });
@@ -120,11 +130,15 @@ export class PriceCheckerBarcodeScanner extends Component {
             }
         } catch (error) {
             console.error("Error searching product:", error);
-            this.notification.add("Error searching for product", {
-                type: "danger",
-            });
+            if (seq === this._requestSeq) {
+                this.notification.add("Error searching for product", {
+                    type: "danger",
+                });
+            }
         } finally {
-            this.state.loading = false;
+            if (seq === this._requestSeq) {
+                this.state.loading = false;
+            }
         }
     }
     

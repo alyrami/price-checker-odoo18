@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import logging
+
 from odoo import http
 from odoo.http import request
+
+_logger = logging.getLogger(__name__)
 
 
 class PriceCheckerController(http.Controller):
@@ -9,13 +13,16 @@ class PriceCheckerController(http.Controller):
     Lightweight JSON-RPC endpoints consumed by the POS price-checker popup.
     POS runs in an isolated JS context so it cannot use the standard ORM service
     directly — these controllers bridge that gap.
-    
+
     ENHANCEMENTS:
     - Calculates prices using ONLY sales taxes (type_tax_use='sale')
     - Excludes purchase taxes to show accurate customer-facing prices
     - This ensures the price displayed matches what customers will actually pay
     - Stock qty is scoped to the CURRENT company's warehouses only
       (fixes multi-company/branch setups returning cross-company stock)
+    - Product lookups are scoped to the CURRENT company (or company-agnostic
+      products) so a user in one company cannot look up products that belong
+      exclusively to another company.
     """
 
     # ------------------------------------------------------------------
@@ -37,11 +44,13 @@ class PriceCheckerController(http.Controller):
             if not barcode:
                 return {'error': 'barcode is required'}
 
+            company_domain = self._company_domain()
+
             # Search on product.product first (variant-level barcode),
             # fall back to product.template barcode.
             Product = request.env['product.product']
             products = Product.sudo().search(
-                [('barcode', '=', barcode.strip()), ('active', '=', True)],
+                company_domain + [('barcode', '=', barcode.strip()), ('active', '=', True)],
                 limit=1
             )
 
@@ -49,7 +58,7 @@ class PriceCheckerController(http.Controller):
                 # Try on template level
                 Template = request.env['product.template']
                 templates = Template.sudo().search(
-                    [('barcode', '=', barcode.strip()), ('active', '=', True)],
+                    company_domain + [('barcode', '=', barcode.strip()), ('active', '=', True)],
                     limit=1
                 )
                 if templates:
@@ -60,12 +69,12 @@ class PriceCheckerController(http.Controller):
                 return {'product': None}
 
             return {'product': self._serialize_product(products[0])}
-        
-        except Exception as e:
-            import logging
-            _logger = logging.getLogger(__name__)
-            _logger.error(f"Error in search_by_barcode for barcode '{barcode}': {str(e)}", exc_info=True)
-            return {'error': f'Server error: {str(e)}', 'product': None}
+
+        except Exception:
+            _logger.error(
+                "Error in search_by_barcode for barcode '%s'", barcode, exc_info=True
+            )
+            return {'error': 'Server error while searching by barcode', 'product': None}
 
     # ------------------------------------------------------------------
     # /web/price_checker/get_product
@@ -79,14 +88,30 @@ class PriceCheckerController(http.Controller):
         methods=['POST'],
     )
     def get_product(self, product_id=None, **kw):
-        if not product_id:
-            return {'error': 'product_id is required'}
+        try:
+            if not product_id:
+                return {'error': 'product_id is required'}
 
-        product = request.env['product.product'].sudo().browse(int(product_id))
-        if not product.exists() or not product.active:
-            return {'product': None}
+            try:
+                product_id = int(product_id)
+            except (TypeError, ValueError):
+                return {'error': 'product_id must be an integer'}
 
-        return {'product': self._serialize_product(product)}
+            company_domain = self._company_domain()
+            product = request.env['product.product'].sudo().search(
+                company_domain + [('id', '=', product_id), ('active', '=', True)],
+                limit=1
+            )
+            if not product:
+                return {'product': None}
+
+            return {'product': self._serialize_product(product)}
+
+        except Exception:
+            _logger.error(
+                "Error in get_product for product_id '%s'", product_id, exc_info=True
+            )
+            return {'error': 'Server error while fetching product', 'product': None}
 
     # ------------------------------------------------------------------
     # /web/price_checker/search_by_name
@@ -103,9 +128,16 @@ class PriceCheckerController(http.Controller):
             if not query:
                 return {'products': []}
 
+            try:
+                limit = int(limit)
+            except (TypeError, ValueError):
+                limit = 10
+            # Never let the client request an unbounded/oversized result set.
+            limit = max(1, min(limit, 50))
+
             Product = request.env['product.product']
             products = Product.sudo().search(
-                [
+                self._company_domain() + [
                     ('active', '=', True),
                     ('available_in_pos', '=', True),
                     '|', '|',
@@ -113,20 +145,34 @@ class PriceCheckerController(http.Controller):
                     ('default_code', 'ilike', query.strip()),
                     ('barcode', 'ilike', query.strip()),
                 ],
-                limit=int(limit)
+                limit=limit
             )
 
             return {'products': [self._serialize_product(p) for p in products]}
-        
-        except Exception as e:
-            import logging
-            _logger = logging.getLogger(__name__)
-            _logger.error(f"Error in search_by_name for query '{query}': {str(e)}", exc_info=True)
-            return {'error': f'Server error: {str(e)}', 'products': []}
+
+        except Exception:
+            _logger.error(
+                "Error in search_by_name for query '%s'", query, exc_info=True
+            )
+            return {'error': 'Server error while searching by name', 'products': []}
 
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
+    def _company_domain(self):
+        """
+        Domain restricting product searches to the current company.
+
+        Products with no company_id set (company_id = False) are shared
+        across all companies, so they remain visible everywhere. Products
+        tied to a specific company are only visible to users operating in
+        that company. Without this, .sudo() searches would ignore Odoo's
+        normal multi-company record rules and leak products (and their
+        prices/stock) across companies.
+        """
+        company = request.env.company
+        return ['|', ('company_id', '=', False), ('company_id', '=', company.id)]
+
     def _get_company_stock_qty(self, product):
         """
         Return qty_available scoped to the CURRENT company's internal locations.
@@ -167,8 +213,6 @@ class PriceCheckerController(http.Controller):
 
         except Exception:
             # If stock module quirks arise, fall back gracefully
-            import logging
-            _logger = logging.getLogger(__name__)
             _logger.warning(
                 "price_checker: could not compute company-scoped stock for "
                 "product %s, falling back to qty_available", product.id, exc_info=True
@@ -253,11 +297,9 @@ class PriceCheckerController(http.Controller):
                 # image
                 'image_128': image_b64,
             }
-        except Exception as e:
-            import logging
-            _logger = logging.getLogger(__name__)
-            _logger.error(f"Error serializing product {product.id}: {str(e)}", exc_info=True)
-            # Return a minimal safe product dict
+        except Exception:
+            _logger.error("Error serializing product %s", product.id, exc_info=True)
+            # Return a minimal safe product dict — never expose exception details to the client.
             return {
                 'id': product.id,
                 'template_id': product.product_tmpl_id.id if product.product_tmpl_id else 0,
@@ -274,5 +316,5 @@ class PriceCheckerController(http.Controller):
                 'qty_available': 0.0,
                 'stock_status': 'out_of_stock',
                 'image_128': None,
-                'error': str(e)
+                'error': 'Server error while formatting product data',
             }
