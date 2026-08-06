@@ -53,14 +53,14 @@
     'assets': {
         # ── backend barcode scanner (unchanged) ──────────────────────────
         'web.assets_backend': [
-            'price_checker/static/src/js/barcode_scanner.js',
-            'price_checker/static/src/xml/barcode_scanner.xml',
+            'alyrami_price_checker/static/src/js/barcode_scanner.js',
+            'alyrami_price_checker/static/src/xml/barcode_scanner.xml',
         ],
         # ── POS assets ────────────────────────────────────────────────────
         'point_of_sale._assets_pos': [
-            'price_checker/static/src/css/pos_price_checker.css',
-            'price_checker/static/src/js/pos_price_checker.js',
-            'price_checker/static/src/xml/pos_price_checker.xml',
+            'alyrami_price_checker/static/src/css/pos_price_checker.css',
+            'alyrami_price_checker/static/src/js/pos_price_checker.js',
+            'alyrami_price_checker/static/src/xml/pos_price_checker.xml',
         ],
     },
     'images': [
