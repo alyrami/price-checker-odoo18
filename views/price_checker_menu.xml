@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Main Menu Item under Inventory -->
+    <menuitem id="menu_price_checker_root"
+              name="Price Checker"
+              parent="stock.menu_stock_root"
+              sequence="50"/>
+
+    <!-- Barcode Scanner Menu (First) -->
+    <menuitem id="menu_price_checker_barcode"
+              name="Barcode Scanner"
+              parent="menu_price_checker_root"
+              action="action_price_checker_barcode"
+              sequence="5"/>
+
+    <!-- Product List Menu (Second) -->
+    <menuitem id="menu_price_checker_products"
+              name="Product List"
+              parent="menu_price_checker_root"
+              action="action_price_checker"
+              sequence="10"/>
+
+    <!-- Kiosk Devices Menu (Third) — gated to the dedicated kiosk-admin group
+         only (see security/price_checker_security.xml, Task 7's resolved
+         decision). Not visible to Inventory users/managers or anyone else. -->
+    <menuitem id="menu_price_checker_kiosks"
+              name="Kiosk Devices"
+              parent="menu_price_checker_root"
+              action="action_price_checker_kiosk"
+              groups="group_kiosk_admin"
+              sequence="15"/>
+
+    <!-- Alternative: Menu under Sales (uncomment if preferred) -->
+    <!--
+    <menuitem id="menu_price_checker_sales"
+              name="Price Checker"
+              parent="sale.sale_menu_root"
+              action="action_price_checker"
+              sequence="50"/>
+    -->
+
+</odoo>

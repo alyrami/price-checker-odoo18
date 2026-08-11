@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="alyrami_price_checker.CameraScannerDialog">
+        <Dialog title.translate="Scan Barcode" fullscreen="true" footer="true"
+                contentClass="'o_price_checker_camera_dialog'">
+            <div class="o_price_checker_camera_body position-relative h-100 d-flex flex-column align-items-center justify-content-center bg-dark">
+                <!-- No autoplay attribute: the browser auto-playing this element on its
+                     own (the instant srcObject is assigned) races with ZXing's internal
+                     play-on-load handshake in camera_barcode_scanner.js and silently
+                     breaks decoding. camera_barcode_scanner.js is the only thing allowed
+                     to call .play() on this element. -->
+                <video t-ref="video"
+                       class="o_price_checker_camera_video"
+                       style="max-width: 100%; max-height: 100%; width: 100%; object-fit: contain;"
+                       playsinline="playsinline"
+                       muted="muted"/>
+
+                <div t-if="state.status === 'starting'"
+                     class="o_price_checker_camera_overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white text-center p-3">
+                    <i class="fa fa-spinner fa-spin fa-2x mb-2"/>
+                    <div>Starting camera...</div>
+                </div>
+
+                <div t-if="state.status === 'denied' or state.status === 'error'"
+                     class="o_price_checker_camera_overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white text-center p-3">
+                    <i class="fa fa-camera fa-2x mb-2"/>
+                    <strong t-if="state.status === 'denied'">Camera access denied</strong>
+                    <strong t-else="">Camera unavailable</strong>
+                    <span class="mt-1" t-esc="state.errorMessage"/>
+                </div>
+            </div>
+            <t t-set-slot="footer">
+                <button t-if="state.torchSupported" type="button" class="btn btn-secondary" t-on-click="onToggleTorch">
+                    <i class="fa fa-bolt me-1"/>
+                    <t t-if="state.torchOn">Torch Off</t>
+                    <t t-else="">Torch On</t>
+                </button>
+                <button type="button" class="btn btn-secondary" t-on-click="onCancel">Cancel</button>
+            </t>
+        </Dialog>
+    </t>
+
+</templates>

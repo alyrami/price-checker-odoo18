@@ -1,0 +1,22 @@
+ZXing.js v0.20.0
+https://github.com/zxing-js/library
+(c) 2018 ZXing for JS Contributors
+Released under the MIT License
+
+Vendored notice (alyrami_price_checker, Track B camera-scanning sprint, Task 3):
+------------------------------------------------------------------------------
+This file (zxing-library.js) is copied unmodified from Odoo 18's own core "web"
+module (addons/web/static/lib/zxing-library/zxing-library.js), which vendors
+the same upstream MIT-licensed build. It is vendored again here, inside this
+module's own static assets, per Rami's confirmed decision that this module
+must never load ZXing (or anything else) from a CDN or reach into another
+module's internal static asset paths at runtime.
+
+It is intentionally NOT registered in this module's `web.assets_backend` or
+`alyrami_price_checker.assets_kiosk` eager asset lists. It is lazy-loaded on
+demand, via a plain <script> tag pointed at this file's own static URL
+(see static/src/js/camera_barcode_scanner.js), only when the browser has no
+native BarcodeDetector API. This keeps it out of every page load that doesn't
+need it, consistent with Task 3's acceptance criteria.
+
+Full upstream license text: https://github.com/zxing-js/library/blob/master/LICENSE

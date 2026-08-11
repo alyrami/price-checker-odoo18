@@ -1,0 +1,168 @@
+/* ============================================================
+   alyrami_price_checker — Track B public kiosk page styles
+   Self-contained; no dependency on Odoo backend/web-client CSS.
+   Tuned for a touch tablet in landscape or portrait.
+   ============================================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+.pc-kiosk-body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.pc-kiosk-wrap {
+    width: 100%;
+    max-width: 520px;
+}
+
+.pc-kiosk-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.pc-kiosk-title {
+    font-size: 1.8rem;
+    margin: 0;
+    font-weight: 700;
+}
+
+.pc-kiosk-main {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.pc-kiosk-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pc-kiosk-label {
+    font-size: 1rem;
+    color: #94a3b8;
+}
+
+.pc-kiosk-input-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pc-kiosk-input {
+    flex: 1 1 220px;
+    min-width: 0;
+    font-size: 1.3rem;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 2px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+.pc-kiosk-input:focus {
+    outline: none;
+    border-color: #38bdf8;
+}
+
+.pc-kiosk-btn {
+    font-size: 1.1rem;
+    padding: 14px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    min-height: 52px;
+}
+
+.pc-kiosk-btn-primary {
+    background: #38bdf8;
+    color: #0f172a;
+}
+
+.pc-kiosk-btn-secondary {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+.pc-kiosk-camera-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pc-kiosk-camera-row .pc-kiosk-btn {
+    flex: 1 1 200px;
+}
+
+.pc-kiosk-camera-panel {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.pc-kiosk-video {
+    width: 100%;
+    max-height: 320px;
+    border-radius: 12px;
+    background: #000;
+    object-fit: cover;
+}
+
+.pc-kiosk-message {
+    min-height: 1.4em;
+    margin-top: 16px;
+    text-align: center;
+    color: #fbbf24;
+    font-size: 1rem;
+}
+
+.pc-kiosk-result {
+    margin-top: 16px;
+    text-align: center;
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.pc-kiosk-result-image {
+    max-width: 160px;
+    max-height: 160px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background: #1e293b;
+}
+
+.pc-kiosk-result-name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.pc-kiosk-result-price {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #4ade80;
+}
+
+.pc-kiosk-hidden {
+    display: none !important;
+}

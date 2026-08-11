@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        TRACK B — public, unauthenticated kiosk page shell (Task 12).
+
+        Deliberately NOT built on top of web.layout / web.frontend_layout or
+        any other Odoo web-client template: those pull in session bootstrap
+        JS, the CSRF token, the company logo route, etc. This page must work
+        with zero login and zero dependency on the authenticated web client
+        or any POS session (B1, B6), so it is a fully standalone HTML
+        document that only loads this module's own kiosk-only asset bundle
+        (alyrami_price_checker.assets_kiosk — see Task 14 / __manifest__.py).
+
+        Rendered HTML below contains no markup or data referencing stock,
+        cart, or POS-session state anywhere (B3) — only a device name, a
+        manual barcode entry field, a camera-scan button, and a result area
+        limited to name/image/price.
+    -->
+    <template id="kiosk_public_page" name="Price Checker Kiosk">&lt;!DOCTYPE html&gt;
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+        <meta name="robots" content="noindex, nofollow"/>
+        <title>Price Checker</title>
+        <t t-call-assets="alyrami_price_checker.assets_kiosk" t-js="false" t-css="true"/>
+    </head>
+    <body class="pc-kiosk-body" t-att-data-kiosk-token="kiosk_token">
+        <div class="pc-kiosk-wrap">
+            <header class="pc-kiosk-header">
+                <h1 class="pc-kiosk-title">Price Checker</h1>
+            </header>
+
+            <main class="pc-kiosk-main">
+                <form id="pc-kiosk-form" class="pc-kiosk-form" autocomplete="off">
+                    <label for="pc-kiosk-barcode-input" class="pc-kiosk-label">Scan or type a barcode</label>
+                    <div class="pc-kiosk-input-row">
+                        <input type="text"
+                               id="pc-kiosk-barcode-input"
+                               class="pc-kiosk-input"
+                               inputmode="text"
+                               placeholder="Barcode"
+                               autofocus="autofocus"
+                               autocomplete="off"/>
+                        <button type="submit" id="pc-kiosk-submit-btn" class="pc-kiosk-btn pc-kiosk-btn-primary">
+                            Check Price
+                        </button>
+                    </div>
+                    <div class="pc-kiosk-camera-row">
+                        <button type="button" id="pc-kiosk-camera-btn" class="pc-kiosk-btn pc-kiosk-btn-secondary">
+                            Scan with Camera
+                        </button>
+                        <button type="button" id="pc-kiosk-torch-btn" class="pc-kiosk-btn pc-kiosk-btn-secondary pc-kiosk-hidden">
+                            Torch
+                        </button>
+                    </div>
+                </form>
+
+                <div id="pc-kiosk-camera-panel" class="pc-kiosk-camera-panel pc-kiosk-hidden">
+                    <!-- No autoplay attribute: the browser auto-playing this element on its
+                         own races with ZXing's internal play-on-load handshake in
+                         camera_barcode_scanner.js and silently breaks decoding.
+                         camera_barcode_scanner.js is the only thing allowed to call
+                         .play() on this element. -->
+                    <video id="pc-kiosk-video" class="pc-kiosk-video" playsinline="playsinline" muted="muted"></video>
+                    <button type="button" id="pc-kiosk-camera-close-btn" class="pc-kiosk-btn pc-kiosk-btn-secondary">
+                        Close Camera
+                    </button>
+                </div>
+
+                <div id="pc-kiosk-message" class="pc-kiosk-message" role="status" aria-live="polite"></div>
+
+                <div id="pc-kiosk-result" class="pc-kiosk-result pc-kiosk-hidden">
+                    <img id="pc-kiosk-result-image" class="pc-kiosk-result-image" alt=""/>
+                    <div id="pc-kiosk-result-name" class="pc-kiosk-result-name"></div>
+                    <div id="pc-kiosk-result-price" class="pc-kiosk-result-price"></div>
+                </div>
+            </main>
+        </div>
+        <!-- Deliberately NOT t-call-assets for JS: Odoo's asset bundler wraps every
+             JS file it processes in an odoo.define(...) call regardless of the
+             @odoo-module tag, expecting Odoo's module loader (odoo.define) to exist
+             on the page. This page never loads that loader (by design — see the
+             comment at the top of this file), so that wrapper throws
+             "odoo is not defined" and silently kills every script in the bundle.
+             Serving these as plain static files bypasses the bundler entirely and
+             actually delivers on "zero dependency on Odoo's module loader". -->
+        <script type="text/javascript" src="/alyrami_price_checker/static/src/js/camera_barcode_scanner.js"></script>
+        <script type="text/javascript" src="/alyrami_price_checker/static/src/js/kiosk_price_checker.js"></script>
+    </body>
+</html>
+    </template>
+
+</odoo>

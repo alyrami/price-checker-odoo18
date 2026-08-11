@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- List View -->
+    <record id="view_price_checker_kiosk_tree" model="ir.ui.view">
+        <field name="name">price.checker.kiosk.tree</field>
+        <field name="model">price_checker.kiosk</field>
+        <field name="arch" type="xml">
+            <list string="Kiosk Devices">
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="rate_limit_per_minute"/>
+                <field name="allowed_ip_cidr" optional="hide"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_price_checker_kiosk_form" model="ir.ui.view">
+        <field name="name">price.checker.kiosk.form</field>
+        <field name="model">price_checker.kiosk</field>
+        <field name="arch" type="xml">
+            <form string="Kiosk Device">
+                <header>
+                    <button name="action_regenerate_token" type="object"
+                            string="Regenerate Token"
+                            confirm="This changes the kiosk's public URL — any tablet/bookmark using the old URL will stop working until updated with the new one. Continue?"
+                            class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="e.g. Front Counter Tablet"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Device">
+                            <field name="company_id"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Access">
+                            <field name="token" readonly="1"/>
+                            <field name="kiosk_url" widget="CopyClipboardURL" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Defense in Depth (optional)">
+                        <field name="rate_limit_per_minute"/>
+                        <field name="allowed_ip_cidr" placeholder="e.g. 192.168.1.0/24 — leave blank to skip"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_price_checker_kiosk" model="ir.actions.act_window">
+        <field name="name">Kiosk Devices</field>
+        <field name="res_model">price_checker.kiosk</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No kiosk devices yet!
+            </p>
+            <p>
+                Create one record per physical tablet/kiosk you want running the
+                public, no-login Price Checker page, then open the generated URL
+                on that device.
+            </p>
+        </field>
+    </record>
+
+</odoo>
