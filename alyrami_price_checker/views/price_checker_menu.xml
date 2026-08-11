@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Main Menu Item under Inventory -->
+    <menuitem id="menu_price_checker_root"
+              name="Price Checker"
+              parent="stock.menu_stock_root"
+              sequence="50"/>
+
+    <!-- Barcode Scanner Menu (First) -->
+    <menuitem id="menu_price_checker_barcode"
+              name="Barcode Scanner"
+              parent="menu_price_checker_root"
+              action="action_price_checker_barcode"
+              sequence="5"/>
+
+    <!-- Product List Menu (Second) -->
+    <menuitem id="menu_price_checker_products"
+              name="Product List"
+              parent="menu_price_checker_root"
+              action="action_price_checker"
+              sequence="10"/>
+
+    <!-- Alternative: Menu under Sales (uncomment if preferred) -->
+    <!--
+    <menuitem id="menu_price_checker_sales"
+              name="Price Checker"
+              parent="sale.sale_menu_root"
+              action="action_price_checker"
+              sequence="50"/>
+    -->
+
+</odoo>
