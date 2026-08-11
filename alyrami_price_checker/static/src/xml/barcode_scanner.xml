@@ -42,8 +42,8 @@
                             autofocus="autofocus"
                             t-att-disabled="state.loading"/>
                     </div>
-                    <div class="col-12 col-md-4 d-flex align-items-end gap-2">
-                        <button 
+                    <div class="col-12 col-md-4 d-flex align-items-end gap-2 flex-wrap">
+                        <button
                             class="btn btn-primary btn-lg flex-grow-1"
                             t-on-click="searchProduct"
                             t-att-disabled="state.loading or !state.barcode">
@@ -51,7 +51,14 @@
                             <t t-if="state.loading">Searching...</t>
                             <t t-else="">Search</t>
                         </button>
-                        <button 
+                        <button
+                            class="btn btn-outline-primary btn-lg"
+                            title="Scan with Camera"
+                            t-on-click="openCameraScanner"
+                            t-att-disabled="state.loading">
+                            <i class="fa fa-camera"/>
+                        </button>
+                        <button
                             class="btn btn-secondary btn-lg"
                             t-on-click="clearSearch"
                             t-att-disabled="state.loading">

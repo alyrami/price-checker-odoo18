@@ -3,6 +3,7 @@
 import { registry } from "@web/core/registry";
 import { Component, useState, onWillStart, useRef } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
+import { CameraScannerDialog } from "@alyrami_price_checker/js/camera_scanner_dialog";
 
 export class PriceCheckerBarcodeScanner extends Component {
     setup() {
@@ -10,7 +11,8 @@ export class PriceCheckerBarcodeScanner extends Component {
         this.action = useService("action");
         this.notification = useService("notification");
         this.barcodeReader = useService("barcode");
-        
+        this.dialog = useService("dialog");
+
         this.state = useState({
             barcode: "",
             product: null,
@@ -57,7 +59,34 @@ export class PriceCheckerBarcodeScanner extends Component {
             this.searchProduct();
         }
     }
-    
+
+    /**
+     * Open the shared camera-scanner modal (Task 4). On a successful decode,
+     * fill the same barcode input the hardware scanner and manual Enter
+     * already use, and call searchProduct() directly — no separate lookup
+     * path is introduced here.
+     */
+    openCameraScanner() {
+        this.dialog.add(CameraScannerDialog, {
+            onDecode: (barcode) => {
+                this.state.barcode = barcode;
+                this.searchProduct();
+            },
+            onPermissionDenied: () => {
+                this.notification.add(
+                    "Camera access was denied. You can still type or scan the barcode manually.",
+                    { type: "warning" }
+                );
+            },
+            onError: () => {
+                this.notification.add(
+                    "Camera scanning is unavailable on this device/browser. You can still type or scan the barcode manually.",
+                    { type: "warning" }
+                );
+            },
+        });
+    }
+
     /**
      * Search for product by barcode
      */

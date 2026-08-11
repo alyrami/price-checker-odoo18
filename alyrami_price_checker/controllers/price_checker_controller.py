@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
+import ipaddress
 import logging
+import threading
+import time
 
 from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+# ----------------------------------------------------------------------
+# TRACK B — module-level, in-process rate-limit state for the public kiosk
+# lookup route (Task 10). Keyed by (kiosk token, requester IP).
+#
+# KNOWN LIMITATION (documented per Task 10's brief — accepted, not a v1
+# blocker): this is plain in-memory Python state, scoped to a single worker
+# process. It does NOT survive a server restart and is NOT shared across
+# multiple Odoo worker processes/threads. On a multi-worker deployment the
+# *effective* ceiling is therefore roughly (per-worker limit x worker
+# count), not one strict global limit. This is acceptable because the
+# primary defenses on this route are exact-match-only search + the
+# minimal-fields serializer (B12/B3), not this counter — see the "Accepted
+# risk" section of SPRINT_BACKLOG.md.
+# ----------------------------------------------------------------------
+_KIOSK_RATE_LIMIT_LOCK = threading.Lock()
+_KIOSK_RATE_LIMIT_BUCKETS = {}
+_KIOSK_RATE_LIMIT_WINDOW_SECONDS = 60
 
 
 class PriceCheckerController(http.Controller):
@@ -318,3 +339,272 @@ class PriceCheckerController(http.Controller):
                 'image_128': None,
                 'error': 'Server error while formatting product data',
             }
+
+    # ==================================================================
+    # TRACK B — public, unauthenticated kiosk routes (Tasks 9-12).
+    #
+    # Everything below this line is ADDITIVE ONLY. Nothing above this line
+    # (search_by_barcode, get_product, search_by_name, _serialize_product,
+    # _company_domain, _get_company_stock_qty) is touched by Track B — those
+    # remain the staff/POS-facing, auth='user' surface, byte-for-byte
+    # unchanged (B11).
+    #
+    # SECURITY — these routes run with auth='public': no login, no session,
+    # and a hostile caller can call them directly with any input, bypassing
+    # the kiosk page's UI entirely. Every rule below exists because of that:
+    #   - Only _serialize_public_product() is ever returned here — never
+    #     _serialize_product() (B1, B3, B10, B11).
+    #   - company_id is resolved ONLY from the price_checker.kiosk record
+    #     matched by token — never from request/session/env.company, and
+    #     never "first company" (B7).
+    #   - Barcode matching is exact (`=`) only — no ilike, no name search,
+    #     no fallback (B12).
+    #   - Zero .write(/.create(/.unlink( calls anywhere below (B13).
+    # ==================================================================
+
+    def _get_active_kiosk(self, token):
+        """
+        Resolve a price_checker.kiosk record from its public URL token.
+
+        Returns an empty recordset (falsy) for a missing/unknown token or an
+        archived (active=False) kiosk — callers must treat all of those
+        identically (generic "not found", B8: never confirm to a caller
+        whether a given token exists).
+
+        Runs under sudo() solely because auth='public' callers have (by
+        design, see security/ir.model.access.csv) zero ORM access to this
+        model. The result is used strictly read-only, only to learn which
+        single company + rate limit + IP allowlist apply to this request.
+        """
+        if not token:
+            return request.env['price_checker.kiosk']
+        return request.env['price_checker.kiosk'].sudo().search([
+            ('token', '=', token),
+            ('active', '=', True),
+        ], limit=1)
+
+    def _kiosk_request_ip(self):
+        """
+        Best-effort requester IP for rate limiting / IP allowlisting.
+
+        Uses werkzeug's remote_addr, which Odoo's own --proxy-mode setting
+        (ProxyFix) already corrects for a trusted reverse proxy in front of
+        the instance. We deliberately do NOT read X-Forwarded-For directly
+        here ourselves, since a raw client-supplied header would be trivial
+        to spoof unless already sanitized by proxy-mode/ProxyFix.
+        """
+        return request.httprequest.remote_addr
+
+    def _kiosk_ip_allowed(self, kiosk, ip):
+        """
+        Task 11 — optional local-network IP allowlist, defense in depth only.
+
+        Primary controls remain exact-match-only search + minimal-fields
+        serialization + rate limiting; this is one extra layer, not the
+        sole control (B8's "where feasible" framing).
+
+        Blank allowed_ip_cidr => check skipped entirely (opt-in per kiosk,
+        unchanged behavior). A configured-but-invalid CIDR fails CLOSED
+        (rejects) rather than silently ignoring the intended restriction.
+        """
+        if not kiosk.allowed_ip_cidr:
+            return True
+        if not ip:
+            return False
+        try:
+            network = ipaddress.ip_network(kiosk.allowed_ip_cidr, strict=False)
+            return ipaddress.ip_address(ip) in network
+        except ValueError:
+            _logger.warning(
+                "price_checker kiosk: kiosk '%s' has an invalid allowed_ip_cidr "
+                "value; failing closed (rejecting) until it is corrected.",
+                kiosk.id,
+            )
+            return False
+
+    def _kiosk_rate_limited(self, kiosk, ip):
+        """
+        Task 10 — in-memory sliding-window rate limit, keyed per kiosk token
+        + requester IP, enforcing kiosk.rate_limit_per_minute (default 25,
+        i.e. within the brief's ~20-30/min guidance). Limit is per-kiosk, so
+        one busy store's tablet can never throttle another store's kiosk.
+
+        See the module-level _KIOSK_RATE_LIMIT_* comment above for the
+        documented in-memory/single-worker limitation.
+        """
+        limit = kiosk.rate_limit_per_minute or 25
+        key = (kiosk.token, ip or 'unknown')
+        now = time.monotonic()
+        with _KIOSK_RATE_LIMIT_LOCK:
+            bucket = _KIOSK_RATE_LIMIT_BUCKETS.setdefault(key, [])
+            cutoff = now - _KIOSK_RATE_LIMIT_WINDOW_SECONDS
+            while bucket and bucket[0] < cutoff:
+                bucket.pop(0)
+            if len(bucket) >= limit:
+                return True
+            bucket.append(now)
+            return False
+
+    def _serialize_public_product(self, product):
+        """
+        Task 9 — minimal, kiosk-safe product dict for the public Track B
+        surface. Returns ONLY name / image_128 / price / currency — nothing
+        else, ever (B1, B3, B10). Deliberately does NOT call or reuse
+        _serialize_product() above, which returns stock quantities,
+        category, internal reference, and other fields that must never
+        reach an unauthenticated caller (B11).
+
+        Uses the same sales-tax-only computation _serialize_product() uses,
+        recomputed independently here rather than shared, so this method
+        has no code path that could ever return more than these four keys.
+        """
+        list_price = product.list_price or 0.0
+        price_with_tax = list_price
+
+        sales_taxes = product.taxes_id.filtered(lambda t: t.type_tax_use == 'sale')
+        if sales_taxes:
+            tax_data = sales_taxes.compute_all(
+                list_price,
+                currency=product.currency_id,
+                quantity=1.0,
+                product=product,
+                partner=None,
+            )
+            price_with_tax = tax_data.get('total_included', list_price)
+
+        template = product.product_tmpl_id
+        image_b64 = None
+        raw_image = template.image_128
+        if raw_image:
+            image_b64 = raw_image.decode('ascii') if isinstance(raw_image, bytes) else raw_image
+
+        currency_name = product.currency_id.name if product.currency_id else 'USD'
+        currency_symbol = product.currency_id.symbol if product.currency_id else '$'
+
+        # Exactly these four keys. Do not add to this dict without going
+        # back through the brief's council-agent review (B1/B3/B10).
+        return {
+            'name': product.name or '',
+            'image_128': image_b64,
+            'price': round(price_with_tax, 2),
+            'currency': currency_symbol or currency_name,
+        }
+
+    def _kiosk_product_lookup(self, kiosk, barcode):
+        """
+        Task 9 — exact-barcode-match-only product search, scoped strictly to
+        the resolved kiosk's company. No ilike, no free-text fallback, no
+        name-search logic of any kind (B12).
+        """
+        barcode = (barcode or '').strip()
+        if not barcode:
+            return None
+
+        # Shared (company_id=False) products remain visible everywhere, same
+        # semantics as the staff-facing _company_domain(); company-specific
+        # products are scoped strictly to kiosk.company_id — never any other
+        # company, never env.company (B7).
+        domain = [
+            '|', ('company_id', '=', False), ('company_id', '=', kiosk.company_id.id),
+            ('barcode', '=', barcode),
+            ('active', '=', True),
+        ]
+
+        # sudo() is required here: auth='public' callers have no ORM access to
+        # product.product/product.template at all (no such grant exists for
+        # base.group_public/base.group_portal), so a plain search would
+        # always return empty. It is safe specifically because this method's
+        # only two callers (kiosk_lookup, indirectly) always pass the result
+        # straight into _serialize_public_product(), which hard-codes its
+        # output to exactly 4 fields — sudo() here can never widen what the
+        # caller ultimately receives.
+        Product = request.env['product.product'].sudo()
+        products = Product.search(domain, limit=1)
+
+        if not products:
+            Template = request.env['product.template'].sudo()
+            templates = Template.search(domain, limit=1)
+            if templates:
+                products = templates[0].product_variant_ids[:1]
+
+        return products[0] if products else None
+
+    @http.route(
+        '/price_checker/kiosk/<string:token>/lookup',
+        type='json',
+        auth='public',
+        methods=['POST'],
+    )
+    def kiosk_lookup(self, token, barcode=None, **kw):
+        """
+        Task 9/10/11 — public, read-only, exact-barcode-match lookup for a
+        single kiosk device. Always returns a generic-shaped dict; never
+        lets an exception escape as an HTTP 500 with a traceback, and never
+        distinguishes "no such kiosk" from "kiosk is inactive" from
+        "IP not allowed" in its response (B8).
+        """
+        try:
+            kiosk = self._get_active_kiosk(token)
+            if not kiosk:
+                return {'error': 'Not found', 'product': None}
+
+            ip = self._kiosk_request_ip()
+
+            # Task 11 — optional IP allowlist (defense in depth).
+            if not self._kiosk_ip_allowed(kiosk, ip):
+                _logger.warning(
+                    "price_checker kiosk: lookup blocked by IP allowlist (kiosk id=%s, ip=%s)",
+                    kiosk.id, ip,
+                )
+                return {'error': 'Not found', 'product': None}
+
+            # Task 10 — per-kiosk rate limit.
+            if self._kiosk_rate_limited(kiosk, ip):
+                _logger.warning(
+                    "price_checker kiosk: rate limit exceeded (kiosk id=%s, ip=%s, limit=%s/min)",
+                    kiosk.id, ip, kiosk.rate_limit_per_minute,
+                )
+                return {'error': 'Too many requests, please try again shortly', 'product': None}
+
+            if not barcode or not str(barcode).strip():
+                return {'error': 'barcode is required', 'product': None}
+
+            product = self._kiosk_product_lookup(kiosk, str(barcode))
+            if not product:
+                return {'product': None}
+
+            return {'product': self._serialize_public_product(product)}
+
+        except Exception:
+            _logger.error("Error in kiosk_lookup for token '%s'", token, exc_info=True)
+            return {'error': 'Server error', 'product': None}
+
+    @http.route(
+        '/price_checker/kiosk/<string:token>',
+        type='http',
+        auth='public',
+        methods=['GET'],
+    )
+    def kiosk_page(self, token, **kw):
+        """
+        Task 12 — public kiosk page shell. Resolves the kiosk the same way
+        as kiosk_lookup (same not-found/inactive/IP-blocked handling, same
+        refusal to confirm which case applies), then renders a minimal,
+        self-contained page with no Odoo backend menu bar, no login prompt,
+        and no dependency on any authenticated or POS session (B1, B6).
+        """
+        kiosk = self._get_active_kiosk(token)
+        if not kiosk:
+            return request.not_found()
+
+        ip = self._kiosk_request_ip()
+        if not self._kiosk_ip_allowed(kiosk, ip):
+            _logger.warning(
+                "price_checker kiosk: page request blocked by IP allowlist (kiosk id=%s, ip=%s)",
+                kiosk.id, ip,
+            )
+            return request.not_found()
+
+        return request.render('alyrami_price_checker.kiosk_public_page', {
+            'kiosk_token': kiosk.token,
+        })

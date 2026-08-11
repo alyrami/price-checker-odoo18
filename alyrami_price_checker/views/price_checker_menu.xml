@@ -21,6 +21,16 @@
               action="action_price_checker"
               sequence="10"/>
 
+    <!-- Kiosk Devices Menu (Third) — gated to the dedicated kiosk-admin group
+         only (see security/price_checker_security.xml, Task 7's resolved
+         decision). Not visible to Inventory users/managers or anyone else. -->
+    <menuitem id="menu_price_checker_kiosks"
+              name="Kiosk Devices"
+              parent="menu_price_checker_root"
+              action="action_price_checker_kiosk"
+              groups="group_kiosk_admin"
+              sequence="15"/>
+
     <!-- Alternative: Menu under Sales (uncomment if preferred) -->
     <!--
     <menuitem id="menu_price_checker_sales"
