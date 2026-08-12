@@ -3,21 +3,26 @@
     'name': 'Price Checker',
     'version': '18.0.3.3.0',
     'category': 'Point of Sale',
-    'summary': 'Enhanced price & stock checker with native barcode scanner integration',
+    'summary': 'Price & stock checker — camera barcode scanning (no reader needed) + public self-service kiosk',
     'description': """
         Price Checker
         =============
         Quick product-price & stock lookup from the backend (Inventory menu),
         from inside the Odoo 18 Point-of-Sale interface, and from a public,
         no-login kiosk tablet page.
+
+        NEW: Scan with a webcam or phone camera — no physical barcode reader
+        required. Customers can even scan a shelf tag themselves on the public
+        kiosk page and see the price instantly, with no login at all.
+
         Features
         --------
+        * Camera barcode scanning (laptop webcam or phone camera) — works
+          anywhere a physical scanner isn't handy, no extra hardware needed
+        * Public self-service kiosk page (per-device, tokenized URL): customers
+          scan a barcode themselves and see product name, image, and price —
+          no login, no staff needed, no stock/cost/internal data ever exposed
         * Integrated with Odoo's native BarcodeReader service for seamless hardware scanner support
-        * Camera-based barcode scanning (native BarcodeDetector, vendored ZXing fallback)
-          in the backend Barcode Scanner screen
-        * Optional public kiosk tablet page (per-device, tokenized URL) for
-          customer self-service price checks: name, image, and price only —
-          no login, no stock/cost/internal data ever exposed
         * Smart tax calculation: shows sales price with only sales taxes (customer-facing)
         * Excludes purchase taxes from customer price display for accuracy
         * Company-scoped stock: available quantity shows only the current company's stock,
@@ -113,6 +118,8 @@
     },
     'images': [
         'static/description/banner.png',
+        'static/description/price_checker_camera.png',
+        'static/description/price_checker_kiosk.png',
         'static/description/screenshot_backend.png',
         'static/description/screenshot_pos_popup.png',
         'static/description/screenshot_pos_menu.png',
