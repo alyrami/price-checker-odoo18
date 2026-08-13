@@ -2,8 +2,8 @@
 <templates xml:space="preserve">
     
     <t t-name="price_checker.BarcodeScanner">
-        <div class="o_price_checker_barcode_scanner">
-            
+        <div t-attf-class="o_price_checker_barcode_scanner {{props.className || ''}}">
+
             <!-- Header -->
             <div class="o_barcode_scanner_header p-3 border-bottom bg-light">
                 <div class="row align-items-center">
@@ -22,7 +22,15 @@
                     </div>
                 </div>
             </div>
-            
+
+            <!-- Scrollable body: Odoo's own webclient_layout.scss makes any
+                 descendant with class "o_content" the scrolling region on
+                 desktop, and defers to the "o_action" root (above) to scroll
+                 on mobile widths. Without this wrapper, neither mechanism
+                 applies and overflow is silently clipped by .o_action_manager,
+                 which only reveals itself on short/mobile viewports. -->
+            <div class="o_content">
+
             <!-- Barcode Input Section -->
             <div class="o_barcode_scanner_input p-4 border-bottom bg-white">
                 <div class="row g-3">
@@ -269,7 +277,9 @@
                     </div>
                 </div>
             </div>
-            
+
+            </div>
+
         </div>
     </t>
     
