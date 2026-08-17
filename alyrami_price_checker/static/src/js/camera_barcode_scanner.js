@@ -46,6 +46,52 @@
 
     var zxingLoadPromise = null;
 
+    // Real-world packaging issue: some products carry both a QR code and a
+    // barcode close together, and the camera would sometimes lock onto the QR
+    // code instead of the barcode. QR detection is deliberately excluded on
+    // both decode paths below — every other format (EAN-13, EAN-8, UPC-A,
+    // UPC-E, Code128, etc.) stays fully enabled, unrestricted.
+    var EXCLUDED_BARCODE_FORMAT = "qr_code";
+
+    /**
+     * Native BarcodeDetector format list, minus QR codes.
+     * @param {string[]} formats as returned by BarcodeDetector.getSupportedFormats()
+     * @returns {string[]}
+     */
+    function excludeQrFromNativeFormats(formats) {
+        return formats.filter(function (f) {
+            return f !== EXCLUDED_BARCODE_FORMAT;
+        });
+    }
+
+    /**
+     * Every format in the vendored ZXing build's BarcodeFormat enum, minus
+     * QR_CODE. Built dynamically (not a hardcoded list) so it stays correct
+     * even if the vendored library's supported formats ever change.
+     * @param {any} ZXing the loaded ZXing namespace
+     * @returns {number[]} ZXing.BarcodeFormat values, for DecodeHintType.POSSIBLE_FORMATS
+     */
+    function getZxingPossibleFormats(ZXing) {
+        var BarcodeFormat = ZXing.BarcodeFormat;
+        var formats = [];
+        for (var key in BarcodeFormat) {
+            if (!Object.prototype.hasOwnProperty.call(BarcodeFormat, key)) {
+                continue;
+            }
+            // TypeScript numeric enums compile to a two-way map (name -> number
+            // AND number -> name on the same object) — skip the reverse
+            // (numeric-key) entries, only the name keys are real format names.
+            if (/^\d+$/.test(key)) {
+                continue;
+            }
+            if (key === "QR_CODE") {
+                continue;
+            }
+            formats.push(BarcodeFormat[key]);
+        }
+        return formats;
+    }
+
     /**
      * Load the vendored ZXing UMD bundle exactly once per page, however many
      * CameraBarcodeScanner instances end up needing it.
@@ -230,7 +276,7 @@
                     if (self._stopped) {
                         return;
                     }
-                    self._detector = new window.BarcodeDetector({ formats: formats });
+                    self._detector = new window.BarcodeDetector({ formats: excludeQrFromNativeFormats(formats) });
                     // Only the native-detector path plays the video itself — see the
                     // comment in start() for why the ZXing path must not be pre-played.
                     return self._playVideo();
@@ -284,7 +330,10 @@
                 if (!ZXing) {
                     throw new Error("Barcode scanning library failed to load.");
                 }
-                self._zxingReader = new ZXing.BrowserMultiFormatReader(null, 300);
+                var hints = new Map([
+                    [ZXing.DecodeHintType.POSSIBLE_FORMATS, getZxingPossibleFormats(ZXing)],
+                ]);
+                self._zxingReader = new ZXing.BrowserMultiFormatReader(hints, 300);
                 self._safeCall(self._onReady, { torchSupported: self.hasTorchSupport() });
                 self._zxingReader.decodeFromVideoElementContinuously(self._videoEl, function (result) {
                     if (self._stopped || !result || typeof result.getText !== "function") {
